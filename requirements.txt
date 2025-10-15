@@ -1,0 +1,8 @@
+datasets==3.6.0
+omegaconf==2.3.0
+peft==0.15.2
+safetensors==0.6.2
+torch==2.8.0
+tqdm==4.67.1
+transformers==4.56.2
+wandb==0.22.2
