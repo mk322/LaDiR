@@ -1,7 +1,7 @@
 # LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning
 
 Official repository for the paper:  
-**[LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning](https://arxiv.org/abs/2510.08558)**  
+**[LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning](https://arxiv.org/abs/2510.04573)**  
 
 ---
 
