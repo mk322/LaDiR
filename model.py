@@ -1196,22 +1196,95 @@ class LMFusionModel(nn.Module):
         return model_pred    
 
 
+    def sample_trajectory(self, input_ids_q, thought_shape=(3, 128), num_steps=50, subsample_every=5):
+        """
+        Run denoising loop, recording trajectory for GRPO.
+
+        Args:
+            input_ids_q: (B, T) question token IDs
+            thought_shape: (seq, dim) shape of thought tokens
+            num_steps: number of denoising steps
+            subsample_every: record every Nth step
+
+        Returns dict with:
+            states: list of x_t tensors at recorded steps
+            actions: list of v_applied tensors at recorded steps
+            timesteps: list of timestep values at recorded steps
+            x_0: final denoised latent (B, seq, dim)
+        """
+        with torch.no_grad():
+            B = input_ids_q.shape[0]
+            device = input_ids_q.device
+            x = torch.randn(B, *thought_shape, dtype=torch.bfloat16, device=device)
+
+            self.sample_scheduler._step_index = None
+            self.sample_scheduler.set_timesteps(num_inference_steps=num_steps)
+
+            states, actions, timesteps_recorded = [], [], []
+
+            for step_idx, t in enumerate(self.sample_scheduler.timesteps):
+                if step_idx % subsample_every == 0:
+                    states.append(x.clone())
+                    timesteps_recorded.append(t.clone())
+
+                proj_x = self.ae_to_latent(x)
+                timestep = torch.full((B,), t, device=device)
+                v_pred = self.inference_step(input_ids_q, proj_x, timestep, infer_cfg=1)
+
+                if step_idx % subsample_every == 0:
+                    actions.append(v_pred.clone())
+
+                x = self.sample_scheduler.step(v_pred, t, x).prev_sample
+
+        return {
+            "states": states,
+            "actions": actions,
+            "timesteps": timesteps_recorded,
+            "x_0": x,
+        }
+
+    def compute_velocity(self, input_ids_q, x_t, timestep):
+        """
+        Compute velocity prediction WITH gradients (for GRPO loss).
+
+        Args:
+            input_ids_q: (B, T) question token IDs
+            x_t: (B, seq, dim) noisy latent at timestep t
+            timestep: (B,) timestep values
+
+        Returns:
+            velocity prediction (B, seq, dim)
+        """
+        proj_x = self.ae_to_latent(x_t)
+        return self.inference_step(input_ids_q, proj_x, timestep, infer_cfg=1)
+
     def forward(self,
-        input,
-        gt_solutions,
-        reasoning_text,
-        input_ids_q,
-        output_ids,
+        input=None,
+        gt_solutions=None,
+        reasoning_text=None,
+        input_ids_q=None,
+        output_ids=None,
         #labels_ans,
         #answer,
+        mode=None,
+        grpo_x_t=None,
+        grpo_timestep=None,
         ):
 
         """
         Forward pass with optional gradient checkpointing.
+
+        Supports two modes:
+        - mode=None (default): SFT training forward pass
+        - mode="velocity": GRPO velocity computation, returns velocity prediction
+          for given (input_ids_q, grpo_x_t, grpo_timestep)
         """
+        if mode == "velocity":
+            return self.compute_velocity(input_ids_q, grpo_x_t, grpo_timestep)
+
         if self.gradient_checkpointing:
             # Use gradient checkpointing for memory savings
-            return checkpoint(self._forward, 
+            return checkpoint(self._forward,
                               gt_solutions,
                             reasoning_text,
                             input_ids_q,
