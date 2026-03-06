@@ -116,9 +116,7 @@ class ThoughtDataset(Dataset):
         )
         output_ids = output_text["input_ids"][0]  
 
-        gt_solutions = None
-        if not self.train:
-            gt_solutions = ex["solutions"]
+        gt_solutions = ex.get("solutions", ex.get("output", ""))
 
         return {
             "input_ids_q": input_ids_q,

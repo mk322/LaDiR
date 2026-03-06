@@ -1,0 +1,57 @@
+run_name: grpo_diffusion_experiment
+
+# GRPO-specific configuration
+grpo:
+  group_size: 8
+  num_denoise_steps: 50
+  clip_epsilon: 0.2
+  kl_coeff: 0.01
+  policy_variance: 1.0
+  num_ppo_epochs: 4
+  trajectory_subsample: 5     # record every 5th step -> 10 steps out of 50
+  max_grad_norm: 1.0
+  learning_rate: 1e-5
+  batch_size: 4
+  num_epochs: 10
+  save_steps: 500
+  log_steps: 1
+  dataloader_num_workers: 4
+  output_dir: ckpt/${run_name}
+  # Optimizer settings (matching SFT)
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  weight_decay: 0.02
+
+reward:
+  type: exact_match
+
+# Path to pre-trained SFT diffusion checkpoint
+sft_checkpoint: "ckpt/vae_diffusion_experiment/checkpoint-XXXX/model.safetensors"
+
+# Model config (same as SFT)
+model:
+  llm_model_name_or_path: meta-llama/Llama-3.1-8B
+  use_flash_attn: true
+  freeze_tokenizer: true
+  discrete: false
+  use_query_embeddings: false
+  num_codebooks: 8
+  patch_embedding_length: 64
+  block: false
+  cos_loss: 1.0
+  emu2_expr: false
+  subsampling: false
+
+dataset:
+  train_file: data/train.jsonl
+  val_file: data/val.jsonl
+
+ae:
+  lora_r: 512
+  lora_alpha: 256
+  lora_dropout: 0.05
+  mean_compression_rate: 1
+  fixed_mem_size: 3
+  icae_ckpt: "checkpoints/vae_model/model.safetensors"
+  scale_factor: 0.2154
+  shift_factor: 0.2192
