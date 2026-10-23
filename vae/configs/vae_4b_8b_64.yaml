@@ -1,0 +1,65 @@
+# Qwen3-4B-Base encoder (frozen LM, 64 learnable queries) -> 64 x 2560 latents -> Qwen3-8B-Base decoder.
+
+model:
+  encoder_name: Qwen/Qwen3-4B-Base
+  decoder_name: Qwen/Qwen3-8B-Base
+  num_latents: 64
+  latent_dim: 2560
+  encoder_mask_mode: hybrid       # hybrid | causal
+  decoder_mask_mode: hybrid
+  position_mode: pad_skip         # pad_skip | padded
+  train_encoder_lm: false         # encoder LM frozen; gradients flow through it to the queries
+  train_encoder_queries: true
+  train_encoder_heads: true
+  train_decoder_lm: true
+  train_decoder_adapter: true
+  sample_posterior: true
+  extra_noise_std: 0.0
+  logvar_clamp: [-30.0, 20.0]
+  ce_fp32: true                   # fp32 lm_head + log-softmax
+  ce_chunk_tokens: 2048
+  query_init_std: 1.0
+  gradient_checkpointing: true
+
+data:
+  path: null                      # JSON/JSONL with SFT-format items (instruction / reasoning_block / text_blocks / language)
+  cache_path: null                # e.g. outputs/vae/data_cache.pt (tokenized once, reused on resume)
+  tokenizer: null                 # default: model.encoder_name
+  max_tokens: 512                 # reasoning_block + EOS; longer blocks are dropped
+  language: Python
+  val_size: 100
+  split_seed: null                # null = last val_size examples
+  overlength: drop
+
+train:
+  output_dir: outputs/vae/vae_4b_8b_64
+  seed: 42
+  micro_batch_size: 6
+  grad_accum: 1
+  epochs: 5
+  max_steps: null
+  lr: 2.0e-5
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  lr_scheduler: constant          # constant | linear | cosine (with linear warmup)
+  warmup_steps: 200
+  min_lr_ratio: 0.0
+  max_grad_norm: 1.0              # under DeepSpeed set the same value in ds_zero3.json
+  kl_weight: 1.0e-6
+  mixed_precision: bf16
+  dtype: bfloat16
+  eval_every: 500
+  eval_batches: 100
+  save_every: 5000
+  keep_last: 2                    # accelerate states kept (each holds fp32 optimizer shards)
+  export_weights: true            # weights/step_N.safetensors
+  resume_from: latest             # latest | path | null
+  init_from: null                 # .pt / exported .safetensors to start from
+  log_every: 10
+  num_workers: 2
+  cpu: false
+
+wandb:
+  enabled: true                   # only active when WANDB_API_KEY or WANDB_MODE is set in the environment
+  project: vae-reasoning-compressor
+  run_name: vae_4b_8b_64

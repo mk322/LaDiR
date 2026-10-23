@@ -1,80 +1,52 @@
-# LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning
+<div align="center">
 
-Official repository for the paper:  
-**[LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning](https://arxiv.org/abs/2510.04573)**  
+<img src="assets/banner.svg" alt="LaDiR: Latent Diffusion Reasoner" width="100%">
 
----
+[![arXiv](https://img.shields.io/badge/arXiv-2510.04573-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2510.04573)
+[![ICLR 2026](https://img.shields.io/badge/ICLR-2026-7c3aed.svg?style=flat-square)](https://arxiv.org/abs/2510.04573)
+[![Model](https://img.shields.io/badge/🤗%20Model-LaDiR--Code--8B-ffd21e.svg?style=flat-square)](https://huggingface.co/mk322/LaDiR-Code-8B)
 
-## 🧠 Overview
+</div>
 
-**LaDiR (Latent Diffusion Reasoner)** introduces a new reasoning framework that unifies the expressiveness of **continuous latent representations** with the **iterative refinement capability** of diffusion models for large language models (LLMs).
+**LaDiR** lets an LLM reason in a continuous latent space. A VAE compresses a reasoning chain into 64 latent tokens;
+the LLM generates this latent block with flow matching, then decodes the answer conditioned on it.
 
-Instead of generating reasoning chains autoregressively, LaDiR performs **latent diffusion over thought tokens**, enabling:
+## Install
 
-- Iterative semantic self-refinement  
-- Diverse parallel reasoning trajectories  
-- A flexible trade-off between accuracy and test-time compute  
+```bash
+pip install -e .
+```
 
----
+## Evaluate
 
+HumanEval(+), MBPP(+) and LiveCodeBench v6:
 
-## 🛠️ Installation
+```bash
+python -m eval.generate --checkpoint mk322/LaDiR-Code-8B
+python -m eval.score results/LaDiR-Code-8B
+```
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   ```
+## Train
 
-2. **Create a virtual environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+```bash
+export LADIR_DATA=/path/to/data LADIR_OUTPUT=/path/to/runs LADIR_RAW_JSON=/path/to/sft.json
 
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 1. reasoning VAE (skip to reuse the VAE inside mk322/LaDiR-Code-8B)
+scripts/train_vae.sh data.path=$LADIR_RAW_JSON
+export LADIR_VAE=outputs/vae/vae_4b_8b_64/weights/step_<N>.safetensors
 
-## 🎯 Usage
+# 2. VAE latents → stage 1 (projectors) → stage 2 (full model)
+scripts/train_sft_stagewise.sh
+```
 
-### Training the VAE Model
-
-1. **Prepare your dataset** in JSONL format with the following structure:
-   ```json
-   {"input": "question text", "output": "reasoning chain"}
-   ```
-
-2. **Configure training parameters** in `configs/cd_formal_8B_VAE_conn.yaml`
-
-3. **Run VAE training**:
-   ```bash
-   cd vae
-   bash ..scripts/train_vae.sh
-   ```
-
-### Training the Diffusion Model
-   ```bash
-   bash scripts/train_vae.sh
-   ```
-
-## ⚙️ Configuration
-
-The model can be configured through YAML files in the `configs/` directory. Key parameters include:
-
-- **Model**: Base language model path, LoRA configuration
-- **Training**: Learning rate, batch size, number of steps
-- **VAE**: Compression rate, memory size, beta for KL loss
-- **Dataset**: Training file paths, data processing options
-
----
-
-If you find this work useful, please consider citing:
+## Citation
 
 ```bibtex
-@article{kang2025ladir,
-  title={LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning},
-  author={Kang, Haoqiang and Zhang, Yizhe and Kuang, Nikki Lijing and Majamäki, Nicklas and Jaitly, Navdeep and Ma, Yi-An and Qin, Lianhui},
-  journal={arXiv preprint arXiv:2510.08558},
-  year={2025}
+@inproceedings{kang2026ladir,
+  title     = {LaDiR: Latent Diffusion Enhances LLMs for Text Reasoning},
+  author    = {Kang, Haoqiang and Zhang, Yizhe and Kuang, Nikki Lijing and Majamaki, Nicklas and Jaitly, Navdeep and Ma, Yi-An and Qin, Lianhui},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2510.04573}
 }
+```

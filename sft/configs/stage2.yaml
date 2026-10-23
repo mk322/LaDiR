@@ -1,0 +1,57 @@
+# Stage-wise SFT, stage 2: full fine-tuning initialised strictly from stage 1's final checkpoint.
+# To continue a released checkpoint instead: model.init_from=mk322/LaDiR-Code-8B
+run_name: ladir-stage2
+output_dir: ${oc.env:LADIR_OUTPUT}/${run_name}
+seed: 42
+
+model:
+  backbone: Qwen/Qwen3-8B-Base
+  init_from: ${oc.env:LADIR_OUTPUT}/ladir-stage1/final
+  trainable: all
+  latent_source: vae
+  num_latents: 64
+  latent_dim: 2560
+  num_train_timesteps: 1000
+  diffusion_batch_mul: 4
+  text_drop_prob: 0.1
+  diffusion_loss_weight: 5.0
+  ce_loss_weight: 1.0
+  diffusion_forcing: true
+  diffusion_forcing_prob: 0.5
+  diffusion_forcing_noise_scale: 0.3
+  flow_mask: train_matched
+  vae:
+    source: ${oc.env:LADIR_VAE,mk322/LaDiR-Code-8B}
+    encoder: Qwen/Qwen3-4B-Base
+
+data:
+  train_dir: ${oc.env:LADIR_DATA}/ling_coder_tok
+  latents_dir: ${oc.env:LADIR_DATA}/ling_coder_latents
+  num_samples: null
+  max_prompt_length: 512
+  max_reasoning_length: 1024
+  max_answer_length: 1024
+  num_workers: 8
+
+train:
+  num_epochs: 10
+  max_steps: null
+  per_device_batch_size: 6
+  grad_accum_steps: 1
+  lr: 5.0e-5
+  warmup_steps: 0                 # constant LR
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  adam_eps: 1.0e-8
+  max_grad_norm: 1.0
+  logging_steps: 30
+  save_steps: 5000
+  save_total_limit: 3
+  resume: true
+
+fsdp:
+  sharding: hybrid_shard
+  param_dtype: bf16
+  reduce_dtype: fp32
+  activation_checkpointing: true
