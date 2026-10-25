@@ -5,6 +5,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2510.04573-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2510.04573)
 [![ICLR 2026](https://img.shields.io/badge/ICLR-2026-7c3aed.svg?style=flat-square)](https://arxiv.org/abs/2510.04573)
 [![Model](https://img.shields.io/badge/🤗%20Model-LaDiR--Code--8B-ffd21e.svg?style=flat-square)](https://huggingface.co/mk322/LaDiR-Code-8B)
+[![Model](https://img.shields.io/badge/🤗%20Model-LaDi--RL--Code--8B-ffd21e.svg?style=flat-square)](https://huggingface.co/mk322/LaDi-RL-Code-8B)
 
 </div>
 
@@ -26,6 +27,8 @@ python -m eval.generate --checkpoint mk322/LaDiR-Code-8B
 python -m eval.score results/LaDiR-Code-8B
 ```
 
+`mk322/LaDi-RL-Code-8B` (LaDiR-Code-8B after LaDi-RL) is evaluated the same way.
+
 ## Train
 
 ```bash
@@ -38,6 +41,19 @@ export LADIR_VAE=outputs/vae/vae_4b_8b_64/weights/step_<N>.safetensors
 # 2. VAE latents → stage 1 (projectors) → stage 2 (full model)
 scripts/train_sft_stagewise.sh
 ```
+
+### LaDi-RL
+
+Reinforcement learning on top of a LaDiR checkpoint with [verl-omni](https://github.com/verl-project/verl-omni):
+Flow-GRPO on a window of the latent denoising steps and token-level GRPO on the answer, with unit-test rewards.
+
+```bash
+pip install -r requirements-rl.txt
+python -m rl.data.fetch_hf --out_dir data/ladi_rl
+scripts/train_rl_4gpu.sh            # 4 x 80GB GPUs; scripts/train_rl.sh for 8
+```
+
+Checkpoints are exported to `<run>/global_step_<N>/actor/ladi` and load with `eval.generate --checkpoint`.
 
 ## Citation
 

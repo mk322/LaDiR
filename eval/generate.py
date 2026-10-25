@@ -156,8 +156,10 @@ def vllm_available() -> bool:
 
 
 def default_backbone_dir(checkpoint: str) -> str:
-    """Where the exported HF backbone lives: <ckpt_dir>-backbone-hf next to a local checkpoint, else
-    $LADIR_BACKBONE_ROOT/<repo name>-backbone-hf (default outputs/backbones)."""
+    """Exported HF backbone: <ckpt>/backbone-hf (RL export), <ckpt_dir>-backbone-hf next to a local checkpoint,
+    else $LADIR_BACKBONE_ROOT/<repo name>-backbone-hf (default outputs/backbones)."""
+    if os.path.isdir(os.path.join(checkpoint, "backbone-hf")):
+        return os.path.join(checkpoint, "backbone-hf")
     if os.path.isdir(checkpoint):
         return os.path.normpath(checkpoint) + "-backbone-hf"
     root = os.environ.get("LADIR_BACKBONE_ROOT", "outputs/backbones")

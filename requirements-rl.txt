@@ -1,0 +1,15 @@
+# LaDi-RL environment
+torch==2.11.*
+transformers==5.20.*
+vllm==0.24.0
+vllm-omni @ git+https://github.com/vllm-project/vllm-omni.git@fe478a95ab39e80085da06e3401c3ed471898a57
+verl @ git+https://github.com/verl-project/verl.git@8a694930275061f52ebd538c906ef8819af56dbd
+verl-omni @ git+https://github.com/verl-project/verl-omni.git@v0.2.0
+ray==2.59.*
+safetensors
+huggingface_hub>=1.0
+omegaconf
+datasets
+pandas
+evalplus==0.3.1
+pytest

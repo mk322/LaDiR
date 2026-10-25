@@ -15,4 +15,4 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["ladir*", "sft*", "vae*", "eval*"]
+include = ["ladir*", "sft*", "vae*", "eval*", "rl*"]

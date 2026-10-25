@@ -1,0 +1,176 @@
+# LaDi-RL on verl-omni v0.2.0 (extends verl-omni's diffusion_trainer config).
+
+hydra:
+  searchpath:
+    - pkg://verl_omni.trainer.config
+
+defaults:
+  - diffusion_trainer
+  - _self_
+
+actor_rollout_ref:
+  hybrid_engine: true
+
+  model:
+    # made by `python -m rl.ladi_rl.model_dir <checkpoint> <dir>`
+    path: ${oc.env:LADI_RL_MODEL,outputs/rl_model}
+    architecture: LaDiForLatentReasoning
+    # flow_grpo | grpo_guard | dance_grpo
+    algorithm: flow_grpo
+    external_lib: rl.ladi_rl
+    attn_backend: native
+    enable_gradient_checkpointing: true
+    fsdp_layer_prefixes: ["backbone_llm.model.layers."]
+    lora_rank: 0
+
+  actor:
+    strategy: fsdp2
+    fsdp_config:
+      strategy: fsdp2
+      model_dtype: fp32
+      param_offload: false
+      optimizer_offload: false
+      offload_policy: false
+    optim:
+      lr: 2.0e-6
+      weight_decay: 0.0
+      clip_grad: 1.0
+      lr_warmup_steps: 0
+    # in prompts
+    ppo_mini_batch_size: 8
+    ppo_micro_batch_size_per_gpu: 4
+    ppo_epochs: 1
+    shuffle: false
+    use_kl_loss: false
+    diffusion_loss:
+      clip_ratio: 1.0e-5
+      adv_clip_max: 5.0
+
+  rollout:
+    name: vllm_omni
+    mode: async
+    # latent trajectories per prompt
+    n: 16
+    seed: 1
+    tensor_model_parallel_size: 1
+    gpu_memory_utilization: 0.25
+    enforce_eager: true
+    free_cache_engine: true
+    load_format: safetensors
+    external_lib: rl.ladi_rl
+    calculate_log_probs: true
+    log_prob_micro_batch_size_per_gpu: 4
+    max_num_seqs: 4
+    rollout_attn_backend: TORCH_SDPA
+    pipeline:
+      num_inference_steps: 10
+      guidance_scale: null
+      max_sequence_length: 1024
+    algo:
+      noise_level: 0.8
+      # sde | cps | dance_sde
+      sde_type: cps
+      sde_window_size: 3
+      sde_window_range: [0, 5]
+      # random | progressive
+      sample_strategy: random
+      iters_per_group: 1
+    agent:
+      num_workers: 8
+      agent_loop_manager_class: rl.ladi_rl.agent_loop.LaDiAgentLoopManager
+    checkpoint_engine:
+      backend: naive
+      update_weights_bucket_megabytes: 2048
+    engine_kwargs:
+      vllm_omni: {}
+
+  ladi:
+    # answer rollout: vllm (colocated vLLM replica) | pipeline (HF decode in the latent worker)
+    ar_backend: vllm
+    # HF Qwen3 config + tokenizer dir for the vLLM replica; default <model.path>/backbone
+    ar_model_path: null
+    ar:
+      gpu_memory_utilization: 0.25
+      max_num_seqs: 256
+      tensor_model_parallel_size: 1
+      enforce_eager: false
+    max_new_tokens: 768
+    temperature: 1.0
+    top_p: 1.0
+    stop_at_code_block: true
+    answers_per_latent: 1
+    decode_batch_size: 64
+    val_temperature: 0.0
+    reward_workers: 32
+    # per-test time limit (s) for stdin / functional tests during training; null = 6 s
+    train_io_timeout: null
+    # pass_rate | all_pass
+    train_reward: all_pass
+    # batch | group | none
+    adv_std: batch
+    adv_eps: 1.0e-4
+    adv_clip: 5.0
+    filter_zero_variance_groups: true
+    # independent | shared_prefix
+    latent_init: independent
+    # step | group
+    window_scope: step
+    full_window: false
+    # all | flow_head | heads
+    trainable: all
+    head_lr_mult: 1.0
+    flow_head_lr: 1.0e-6
+    export_ladi_checkpoint: true
+    # split | single
+    export_format: split
+    log_memory: true
+    save_fsdp_checkpoint: true
+    loss:
+      flow_coef: 1.0
+      # fixed | grad_ratio
+      flow_coef_mode: grad_ratio
+      flow_grad_ratio: 0.5
+      flow_coef_min: 1.0
+      flow_coef_max: 10000.0
+      text_coef: 1.0
+      text_clip_low: 0.2
+      text_clip_high: 0.28
+      text_clip_ratio_c: 3.0
+      text_adv_clip: 5.0
+      text_tis_cap: 0.0
+      train_text: true
+      train_flow: true
+
+algorithm:
+  adv_estimator: flow_grpo
+  global_std: true
+
+data:
+  train_files: ${oc.env:LADI_RL_DATA,data/ladi_rl}/train.parquet
+  val_files: ${oc.env:LADI_RL_DATA,data/ladi_rl}/validation.parquet
+  train_batch_size: 32
+  max_prompt_length: 1024
+  max_response_length: 768
+  dataloader_num_workers: 0
+  shuffle: true
+  seed: 1
+
+reward:
+  reward_model:
+    enable: false
+
+trainer:
+  project_name: ladi_rl
+  experiment_name: ladi_rl_code
+  logger: ["console"]
+  n_gpus_per_node: 8
+  nnodes: 1
+  total_epochs: 1
+  total_training_steps: null
+  save_freq: 50
+  test_freq: 20
+  val_before_train: false
+  resume_mode: auto
+  default_local_dir: ${oc.env:LADI_RL_OUT,outputs/ladi_rl}/${trainer.experiment_name}
+  rollout_data_dir: ${oc.env:LADI_RL_OUT,outputs/ladi_rl}/${trainer.experiment_name}/rollouts
+  validation_data_dir: ${oc.env:LADI_RL_OUT,outputs/ladi_rl}/${trainer.experiment_name}/val
