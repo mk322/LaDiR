@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.svg" alt="LaDiR: Latent Diffusion Reasoner" width="100%">
+<img src="assets/banner.svg" alt="LaDiR and LaDi-RL" width="100%">
 
 [![LaDiR](https://img.shields.io/badge/LaDiR-ICLR%202026-7c3aed.svg?style=flat-square)](https://arxiv.org/abs/2510.04573)
 [![LaDi-RL](https://img.shields.io/badge/LaDi--RL-arXiv%202602.01705-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2602.01705)
